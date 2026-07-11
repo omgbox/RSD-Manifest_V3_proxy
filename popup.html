@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>RSD Proxy Switcher</h1>
+
+    <div id="status-bar">
+      <span id="status-dot" class="dot dot-off"></span>
+      <span id="status-text">Disconnected</span>
+    </div>
+
+    <div class="toggle-row">
+      <label class="switch">
+        <input type="checkbox" id="toggle" />
+        <span class="slider"></span>
+      </label>
+      <span id="toggle-label">OFF</span>
+    </div>
+
+    <label for="host">Host</label>
+    <input type="text" id="host" placeholder="e.g. 203.0.113.10" />
+
+    <label for="port">Port</label>
+    <input type="number" id="port" placeholder="1080" min="1" max="65535" />
+
+    <label for="bypass">Bypass List</label>
+    <input type="text" id="bypass" placeholder="<local>" />
+
+    <button id="apply">Apply &amp; Connect</button>
+
+    <p id="error-msg" class="error hidden"></p>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
