@@ -1,54 +1,62 @@
 const $ = (sel) => document.querySelector(sel);
 
-const toggle   = $('#toggle');
-const label    = $('#toggle-label');
 const hostEl   = $('#host');
 const portEl   = $('#port');
 const bypassEl = $('#bypass');
 const applyBtn = $('#apply');
-const dot      = $('#status-dot');
+const toggleBtn = $('#toggle');
+const pill     = $('#status-pill');
 const statusTx = $('#status-text');
+const errorBar = $('#error-bar');
 const errorMsg = $('#error-msg');
 
 let busy = false;
+let proxyOn = false;
 
 async function init() {
   try {
     const stored = await chrome.runtime.sendMessage({ action: 'getStatus' });
 
     if (!stored) {
-      showError('Extension service worker is not ready. Reopen the popup.');
+      showError('Service worker not ready. Reopen popup.');
       return;
     }
 
     hostEl.value   = stored.proxyHost    || '';
     portEl.value   = stored.proxyPort    || 1080;
     bypassEl.value = stored.bypassList   || '<local>';
-    toggle.checked = !!stored.proxyEnabled;
+    proxyOn = !!stored.proxyEnabled;
 
-    updateUI(stored.proxyEnabled);
+    renderState(proxyOn);
   } catch (err) {
-    showError('Failed to initialize: ' + err.message);
+    showError('Init failed: ' + err.message);
   }
 }
 
-function updateUI(enabled) {
-  if (enabled) {
-    dot.className  = 'dot dot-on';
-    statusTx.textContent = 'Connected';
-    label.textContent = 'ON';
+function renderState(on) {
+  if (on) {
+    pill.className = 'pill pill-on';
+    statusTx.textContent = 'connected';
+    toggleBtn.classList.add('active');
+    applyBtn.innerHTML = '<span class="btn-icon">&#9632;</span> Disconnect';
   } else {
-    dot.className  = 'dot dot-off';
-    statusTx.textContent = 'Disconnected';
-    label.textContent = 'OFF';
+    pill.className = 'pill pill-off';
+    statusTx.textContent = 'disconnected';
+    toggleBtn.classList.remove('active');
+    applyBtn.innerHTML = '<span class="btn-icon">&#9654;</span> Connect';
   }
-  errorMsg.classList.add('hidden');
+  hideError();
+}
+
+function renderError() {
+  pill.className = 'pill pill-error';
+  statusTx.textContent = 'error';
 }
 
 function setBusy(state) {
   busy = state;
   applyBtn.disabled = state;
-  toggle.disabled = state;
+  toggleBtn.disabled = state;
   hostEl.disabled = state;
   portEl.disabled = state;
   bypassEl.disabled = state;
@@ -56,74 +64,30 @@ function setBusy(state) {
 
 function showError(text) {
   errorMsg.textContent = text;
-  errorMsg.classList.remove('hidden');
+  errorBar.classList.remove('hidden');
 }
 
-toggle.addEventListener('change', () => {
-  if (busy) {
-    toggle.checked = !toggle.checked;
-    return;
-  }
+function hideError() {
+  errorBar.classList.add('hidden');
+}
 
-  const on = toggle.checked;
-  label.textContent = on ? 'ON' : 'OFF';
-
-  if (!on) {
-    setBusy(true);
-    chrome.runtime.sendMessage({ action: 'disable' }, (res) => {
-      setBusy(false);
-      if (chrome.runtime.lastError || !res?.ok) {
-        showError(chrome.runtime.lastError?.message || res?.error || 'Failed to disable proxy.');
-        toggle.checked = true;
-        label.textContent = 'ON';
-        return;
-      }
-      updateUI(false);
-    });
-  } else {
-    const host   = hostEl.value.trim();
-    const port   = Number(portEl.value);
-    const bypass = bypassEl.value.trim();
-
-    if (!host || !Number.isInteger(port) || port < 1 || port > 65535) {
-      showError('Set valid Host and Port (1-65535) first.');
-      toggle.checked = false;
-      label.textContent = 'OFF';
-      return;
-    }
-
-    setBusy(true);
-    chrome.runtime.sendMessage(
-      { action: 'enable', host, port, bypassList: bypass },
-      (res) => {
-        setBusy(false);
-        if (chrome.runtime.lastError || !res?.ok) {
-          showError(chrome.runtime.lastError?.message || res?.error || 'Failed to enable proxy.');
-          toggle.checked = false;
-          label.textContent = 'OFF';
-          return;
-        }
-        updateUI(true);
-      }
-    );
-  }
-});
-
-applyBtn.addEventListener('click', () => {
-  if (busy) return;
-
+function getInputs() {
   const host   = hostEl.value.trim();
   const port   = Number(portEl.value);
   const bypass = bypassEl.value.trim();
+  return { host, port, bypass };
+}
 
-  if (!host) {
-    showError('Host is required.');
-    return;
-  }
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    showError('Port must be 1-65535.');
-    return;
-  }
+function validate({ host, port }) {
+  if (!host) return 'Host is required.';
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return 'Port must be 1-65535.';
+  return null;
+}
+
+function doConnect() {
+  const { host, port, bypass } = getInputs();
+  const err = validate({ host, port });
+  if (err) { showError(err); return; }
 
   setBusy(true);
   chrome.runtime.sendMessage(
@@ -131,22 +95,51 @@ applyBtn.addEventListener('click', () => {
     (res) => {
       setBusy(false);
       if (chrome.runtime.lastError || !res?.ok) {
-        showError(chrome.runtime.lastError?.message || res?.error || 'Failed to enable proxy.');
-        toggle.checked = false;
-        label.textContent = 'OFF';
+        showError(chrome.runtime.lastError?.message || res?.error || 'Connection failed.');
+        proxyOn = false;
+        renderState(false);
         return;
       }
-      toggle.checked = true;
-      label.textContent = 'ON';
-      updateUI(true);
+      proxyOn = true;
+      renderState(true);
     }
   );
+}
+
+function doDisconnect() {
+  setBusy(true);
+  chrome.runtime.sendMessage({ action: 'disable' }, (res) => {
+    setBusy(false);
+    if (chrome.runtime.lastError || !res?.ok) {
+      showError(chrome.runtime.lastError?.message || res?.error || 'Disconnect failed.');
+      return;
+    }
+    proxyOn = false;
+    renderState(false);
+  });
+}
+
+applyBtn.addEventListener('click', () => {
+  if (busy) return;
+  if (proxyOn) {
+    doDisconnect();
+  } else {
+    doConnect();
+  }
+});
+
+toggleBtn.addEventListener('click', () => {
+  if (busy) return;
+  if (proxyOn) {
+    doDisconnect();
+  } else {
+    doConnect();
+  }
 });
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'proxyError') {
-    dot.className = 'dot dot-error';
-    statusTx.textContent = 'Error';
+    renderError();
     showError(msg.error);
   }
 });

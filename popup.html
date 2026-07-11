@@ -5,34 +5,53 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>RSD Proxy Switcher</h1>
+  <div class="panel">
+    <header>
+      <div class="title-row">
+        <span class="logo">&gt;_</span>
+        <h1>RSD Proxy</h1>
+      </div>
+      <div id="status-pill" class="pill pill-off">
+        <span class="pulse"></span>
+        <span id="status-text">disconnected</span>
+      </div>
+    </header>
 
-    <div id="status-bar">
-      <span id="status-dot" class="dot dot-off"></span>
-      <span id="status-text">Disconnected</span>
+    <div class="divider"></div>
+
+    <section class="controls">
+      <div class="field">
+        <span class="prompt">$</span>
+        <input type="text" id="host" placeholder="host" spellcheck="false" autocomplete="off" />
+      </div>
+      <div class="field">
+        <span class="prompt">:</span>
+        <input type="number" id="port" placeholder="1080" min="1" max="65535" />
+      </div>
+      <div class="field">
+        <span class="prompt">~</span>
+        <input type="text" id="bypass" placeholder="bypass (optional)" spellcheck="false" autocomplete="off" />
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <section class="actions">
+      <button id="apply" class="btn-primary">
+        <span class="btn-icon">&#9654;</span>
+        Connect
+      </button>
+      <button id="toggle" class="btn-toggle" aria-label="Toggle proxy">
+        <span class="toggle-track">
+          <span class="toggle-thumb"></span>
+        </span>
+      </button>
+    </section>
+
+    <div id="error-bar" class="error-bar hidden">
+      <span class="error-icon">!</span>
+      <span id="error-msg"></span>
     </div>
-
-    <div class="toggle-row">
-      <label class="switch">
-        <input type="checkbox" id="toggle" />
-        <span class="slider"></span>
-      </label>
-      <span id="toggle-label">OFF</span>
-    </div>
-
-    <label for="host">Host</label>
-    <input type="text" id="host" placeholder="e.g. 203.0.113.10" />
-
-    <label for="port">Port</label>
-    <input type="number" id="port" placeholder="1080" min="1" max="65535" />
-
-    <label for="bypass">Bypass List</label>
-    <input type="text" id="bypass" placeholder="<local>" />
-
-    <button id="apply">Apply &amp; Connect</button>
-
-    <p id="error-msg" class="error hidden"></p>
   </div>
 
   <script src="popup.js"></script>
